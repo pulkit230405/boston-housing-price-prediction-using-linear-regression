@@ -1,0 +1,91 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load dataset
+data = np.loadtxt('housing.csv')
+X, Y = data[:, :-1], data[:, -1]
+
+n, f = X.shape
+mx, my = np.mean(X, axis=0), np.mean(Y)
+
+# Covariance Matrix
+X_centered = X - mx
+cov = (X_centered.T @ X_centered) / (n - 1)
+print("Covariance Matrix:\n", cov)
+
+# Correlation Matrix
+std_X = np.std(X, axis=0)
+std_Y = np.std(Y)
+corr = np.zeros((f + 1, f + 1))
+
+for i in range(f):
+    for j in range(f):
+        corr[i, j] = cov[i, j] / (std_X[i] * std_X[j])
+    corr[i, -1] = np.corrcoef(X[:, i], Y)[0, 1]
+
+corr[-1, :-1] = corr[:-1, -1]
+corr[-1, -1] = 1.0
+print("\nCorrelation Matrix:\n", corr)
+
+# Eigen Decomposition
+eig_vals, eig_vecs = np.linalg.eig(cov)
+print("\nEigenvalues:\n", eig_vals)
+print("\nEigenvectors:\n", eig_vecs)
+
+# Check orthogonality
+orthogonal = np.allclose(np.dot(eig_vecs.T, eig_vecs), np.eye(f))
+print("\nAre eigenvectors orthogonal?", orthogonal)
+
+# Regression: Number of Rooms (Feature 5) vs Price
+rm_idx = 5
+xr = X[:, rm_idx]
+b1 = np.cov(xr, Y)[0, 1] / np.var(xr)
+b0 = my - b1 * np.mean(xr)
+yp = b0 + b1 * xr
+
+plt.scatter(xr, Y, alpha=0.5, label='Data Points')
+plt.plot(xr, yp, color='red', label='Regression Line')
+plt.xlabel('Number of Rooms')
+plt.ylabel('House Price')
+plt.title('Rooms vs House Price')
+plt.legend()
+plt.show()
+
+# Feature with Highest Correlation to Price
+corr_with_price = corr[:-1, -1]
+best_feature = np.argmax(np.abs(corr_with_price))
+print(f"\nFeature {best_feature} has the highest correlation with house price.")
+print("Correlation Value:", corr_with_price[best_feature])
+
+# Plot best feature
+xb = X[:, best_feature]
+b1 = np.cov(xb, Y)[0, 1] / np.var(xb)
+b0 = my - b1 * np.mean(xb)
+yp = b0 + b1 * xb
+
+plt.scatter(xb, Y, alpha=0.5, label='Data Points')
+plt.plot(xb, yp, color='green', label='Regression Line')
+plt.xlabel(f'Feature {best_feature}')
+plt.ylabel('House Price')
+plt.title(f'Feature {best_feature} vs House Price')
+plt.legend()
+plt.show()
+
+# Simple Linear Regression Error Metrics
+errors = {}
+for i in range(f):
+    xi = X[:, i]
+    xi_mean = mx[i]
+    b1 = np.sum((xi - xi_mean) * (Y - my)) / np.sum((xi - xi_mean) ** 2)
+    b0 = my - b1 * xi_mean
+    yp = b0 + b1 * xi
+
+    mse = np.mean((Y - yp) ** 2)
+    mae = np.mean(np.abs(Y - yp))
+    mpe = np.mean(np.abs((Y - yp) / Y)) * 100
+
+    errors[f'Feature {i}'] = {'MSE': mse, 'MAE': mae, 'MPE': mpe}
+
+# Display Errors
+for feature, metrics in errors.items():
+    print(f"{feature}: {metrics}")
